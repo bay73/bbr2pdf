@@ -2,6 +2,7 @@ package org.bay.bbr2pdf;
 
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.PdfContentByte;
@@ -21,10 +22,10 @@ import java.io.OutputStream;
  */
 public class PDFWriter {
     // Some magic constants
-    public static final float padding = 31.2F;
-    public static final float widthmeasure = 72F;
-    public static final float heightmeasure = 120.3F;
-    public static final float lineWidth = 0.5F;
+    public static final float padding = 30F; // page marging outside the text
+    public static final float widthmeasure = 72F; // horizontal points per inch
+    public static final float heightmeasure = widthmeasure * 5F/3F; // relation of width and heght of a character
+    public static final float lineWidth = 0.5F; // Ir seems thin lines look better then 1F
     
     private float charWidth;
     private float charHeight;
@@ -41,6 +42,72 @@ public class PDFWriter {
     
     private float currentX;
     private float currentY;
+    
+    private class sizeChooser{
+        private Rectangle bestRect;
+        private float bestDiff;
+        private float needWidth;
+        private float needHeight;
+        final private void compare(Rectangle rect){
+            if(rect.getWidth() >= needWidth && rect.getHeight() >= needHeight){
+                float diffW = rect.getWidth() - needWidth;
+                float diffH = rect.getHeight() - needHeight;
+                if(diffW <= bestDiff && diffH <= bestDiff){
+                    bestRect = rect;
+                    if (diffW < diffH) bestDiff = diffH;
+                    else bestDiff = diffW;
+                }
+            }
+            rect = rect.rotate();
+            if(rect.getWidth() >= needWidth && rect.getHeight() >= needHeight){
+                float diffW = rect.getWidth() - needWidth;
+                float diffH = rect.getHeight() - needHeight;
+                if(diffW <= bestDiff && diffH <= bestDiff){
+                    bestRect = rect;
+                    if (diffW < diffH) bestDiff = diffH;
+                    else bestDiff = diffW;
+                }
+            }
+        }
+        
+        sizeChooser(float width, float height){
+            this.needHeight = height;
+            this.needWidth = width;
+            this.bestDiff = Float.MAX_VALUE;
+            compare(PageSize.A0);
+            compare(PageSize.A1);
+            compare(PageSize.A2);
+            compare(PageSize.A3);
+            compare(PageSize.A4);
+            compare(PageSize.A5);
+            compare(PageSize.A6);
+            compare(PageSize.A7);
+            compare(PageSize.A8);
+            compare(PageSize.A9);
+            compare(PageSize.A10);
+            compare(PageSize.B0);
+            compare(PageSize.B1);
+            compare(PageSize.B2);
+            compare(PageSize.B3);
+            compare(PageSize.B4);
+            compare(PageSize.B5);
+            compare(PageSize.B6);
+            compare(PageSize.B7);
+            compare(PageSize.B8);
+            compare(PageSize.B8);
+            compare(PageSize.B10);
+            compare(PageSize.EXECUTIVE);
+            compare(PageSize.HALFLETTER);
+            compare(PageSize.LEGAL);
+            compare(PageSize.LETTER);
+            compare(PageSize.NOTE);
+            compare(PageSize.POSTCARD);
+        }
+        
+        Rectangle getBest(){
+            return bestRect;
+        }
+    }
     
     public PDFWriter(int width, int height, int cpi) throws IOException{
         try {
@@ -66,11 +133,11 @@ public class PDFWriter {
         currentX = padding + leftMargin * this.charWidth;
         currentY = this.pageHeight - padding - topMargin * this.charHeight;
     }
-
+    
     void open(OutputStream stream) throws IOException {
         try {
             document = new Document();
-            Rectangle rect = new Rectangle(pageWidth, pageHeight);
+            Rectangle rect = new sizeChooser(pageWidth, pageHeight).getBest();
             document.setPageSize(rect);
             writer = PdfWriter.getInstance(document, stream);
             document.open();
