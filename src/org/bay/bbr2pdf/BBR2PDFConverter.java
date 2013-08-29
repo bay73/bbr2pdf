@@ -105,11 +105,16 @@ public class BBR2PDFConverter {
 
     public void setSource(File file) throws FileNotFoundException, IOException{
         List<String> lines = new ArrayList<>();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-        while(reader.ready()){
-            lines.add(reader.readLine());
+        BufferedReader reader = null;
+        try{
+	        reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+	        while(reader.ready()){
+	            lines.add(reader.readLine());
+	        }
+	        setSource(lines);
+        }finally{
+        	reader.close();
         }
-        setSource(lines);
     }
     
     public void setSource(Connection connection, Integer reportId) throws IOException, SQLException{
