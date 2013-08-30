@@ -13,14 +13,17 @@ import java.util.List;
  * @author Andrey Bogdanov <bay73@mail.ru>
  * @version 1.0
  * @since 2013-08-25
- * 
+ *
  * Class to convert BBR markup data to pdf-file
- * 
+ *
  */
-public class BBR2PDFConverter {
+public class BBRConverter {
     
+    /*
+     * Private staff
+     */
     private PageScanner scanner;
-    private PDFWriter writer;
+    private CommonWriter writer;
     private int leftMargin;
     private int rightMargin;
     private int topMargin;
@@ -30,22 +33,23 @@ public class BBR2PDFConverter {
     private int height;
     private List<String[]> pages;
     private OutputStream outStream;
-    
-    public BBR2PDFConverter(){
-        pages = new ArrayList<>();
+
+    public BBRConverter(CommonWriter writer) {
+        this.pages = new ArrayList<>();
+        this.writer = writer;
     }
 
-/**
- * Main method which start conversion
- */
+    /**
+     * Main method which start conversion
+     */
     public void process() throws IOException {
         width = rightMargin + leftMargin;
         height = topMargin + bottomMargin;
-        writer = new PDFWriter(width, height, cpi);
-        writer.open( outStream );
+        writer.setPageSize(width, height, cpi);
+        writer.open(outStream);
         writer.setMargins(leftMargin, topMargin);
         int pageCount = pages.size();
-        for(int p = 0; p<pageCount; p++){
+        for (int p = 0; p < pageCount; p++) {
             writer.nextPage();
             scanner = new PageScanner();
             scanner.setSource(pages.get(p));
@@ -54,29 +58,36 @@ public class BBR2PDFConverter {
         writer.finish();
     }
     
-    public void setCPI(int cpi) {this.cpi = cpi;}
-    
-    public void setLeftMargin(int leftMargin){this.leftMargin = leftMargin;}
+    /*
+     * setters
+     */
+    public void setCPI(int cpi) {
+        this.cpi = cpi;
+    }
 
-    public void setRightMargin(int rightMargin){this.rightMargin = rightMargin;}
+    public void setLeftMargin(int leftMargin) {
+        this.leftMargin = leftMargin;
+    }
 
-    public void setTopMargin(int topMargin){this.topMargin = topMargin;}
+    public void setRightMargin(int rightMargin) {
+        this.rightMargin = rightMargin;
+    }
 
-    public void setBottomMargin(int bottomMargin){this.bottomMargin = bottomMargin;}
-    
-/**
- * Set parameters of report from bbr description string
- * The string has the next format:
- * BDDOTTLLHHH
- * where
- * B - is only a symbol
- * DD - number of character per inch
- * O - page orientation 1 - portrait, 2 - landscape
- * TT - top margin
- * LL - left margin
- * HHH - page height
- * 
- */
+    public void setTopMargin(int topMargin) {
+        this.topMargin = topMargin;
+    }
+
+    public void setBottomMargin(int bottomMargin) {
+        this.bottomMargin = bottomMargin;
+    }
+
+    /**
+     * Set parameters of report from bbr description string The string has the
+     * next format: BDDOTTLLHHH where B - is only a symbol DD - number of
+     * character per inch O - page orientation 1 - portrait, 2 - landscape TT -
+     * top margin LL - left margin HHH - page height
+     *
+     */
     public void setReportParams(String designText, int rightMargin) throws IOException {
         setRightMargin(rightMargin);
         setLeftMargin(new Integer(designText.substring(4, 6).trim()));
@@ -84,50 +95,50 @@ public class BBR2PDFConverter {
         setBottomMargin(new Integer(designText.substring(8).trim()));
         setCPI(new Integer(designText.substring(1, 3).trim()));
     }
-    
-/**
- * Set data source for reading bbr-data
- * it could be array, file or sql-connection to oracle database
- */
-    public void setSource(String[] lines){
+
+    /**
+     * Set data source for reading bbr-data it could be array, file or
+     * sql-connection to oracle database
+     */
+    public void setSource(String[] lines) {
         pages.add(lines);
     }
 
-    public void setSource(List<String> lines){
+    public void setSource(List<String> lines) {
         String[] reportlines = new String[lines.size()];
         reportlines = lines.toArray(reportlines);
         setSource(reportlines);
     }
 
-    public void setSource(String fileName) throws FileNotFoundException, IOException{
+    public void setSource(String fileName) throws FileNotFoundException, IOException {
         setSource(new File(fileName));
     }
 
-    public void setSource(File file) throws FileNotFoundException, IOException{
+    public void setSource(File file) throws FileNotFoundException, IOException {
         List<String> lines = new ArrayList<>();
         BufferedReader reader = null;
-        try{
-	        reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
-	        while(reader.ready()){
-	            lines.add(reader.readLine());
-	        }
-	        setSource(lines);
-        }finally{
-        	reader.close();
+        try {
+            reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+            while (reader.ready()) {
+                lines.add(reader.readLine());
+            }
+            setSource(lines);
+        } finally {
+            reader.close();
         }
     }
-    
-    public void setSource(Connection connection, Integer reportId) throws IOException, SQLException{
+
+    public void setSource(Connection connection, Integer reportId, boolean bTemp) throws IOException, SQLException {
         PreparedStatement ps = null;
         ResultSet rs = null;
-        try{
+        try {
             ps = connection.prepareStatement(
-                    "SELECT RR.PageCount, RR.RightMargin, RT.DesignText"
-                    + " FROM ReadyReport RR, ReportTemplate RT"
+                    "SELECT RR.PageCount, RR.RightMargin, RT.DesignText "
+                    + " FROM " + (bTemp ? "ReadyReport_Tmp" : "ReadyReport") + " RR, ReportTemplate RT"
                     + " WHERE RR.Classified = :1 and RR.ReportProc = RT.ReportProc(+)");
             ps.setInt(1, reportId);
             rs = ps.executeQuery();
-            if(rs.next()){
+            if (rs.next()) {
                 int rM = rs.getInt(2);
                 String designText = rs.getString(3);
                 setReportParams(designText, rM);
@@ -136,14 +147,18 @@ public class BBR2PDFConverter {
             ps.close();
             ps = connection.prepareStatement(
                     "SELECT LineText, PageNumber, LineNumber, nPartCount"
-                    + " FROM ReportLines "
+                    + " FROM " + (bTemp ? "ReportLines_Tmp" : "ReportLines") + " "
                     + " WHERE Report = :1 ORDER BY PageNumber, LineNumber, nPartCount");
             ps.setInt(1, reportId);
             rs = ps.executeQuery();
             setSource(rs);
-        }finally{
-            if(rs!=null) rs.close();
-            if(ps!=null) ps.close();
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
         }
     }
 
@@ -172,24 +187,23 @@ public class BBR2PDFConverter {
         lines.add(str.toString());
         setSource(lines);
     }
-    
-/**
- * Set target for writing pdf
- * it could be file or stream
- */
-    public void setTarget(String fileName) throws IOException{
+
+    /**
+     * Set target for writing pdf it could be file or stream
+     */
+    public void setTarget(String fileName) throws IOException {
         File file = new File(fileName);
         setTarget(file);
     }
 
-    public void setTarget(File file) throws IOException{
-        if(!file.exists()) {
+    public void setTarget(File file) throws IOException {
+        if (!file.exists()) {
             file.createNewFile();
         }
         setTarget(new FileOutputStream(file));
     }
-    
-    public void setTarget(OutputStream stream){
+
+    public void setTarget(OutputStream stream) {
         outStream = stream;
     }
 }
