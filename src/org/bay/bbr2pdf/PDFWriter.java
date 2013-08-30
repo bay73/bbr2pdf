@@ -1,9 +1,6 @@
 package org.bay.bbr2pdf;
 
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.PageSize;
-import com.itextpdf.text.Rectangle;
+import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfWriter;
@@ -20,11 +17,23 @@ import java.io.OutputStream;
  * 
  */
 public class PDFWriter {
+    public static final int ALLIGNMENT_LEFT = 1;
+    public static final int ALLIGNMENT_CENTER = 2;
+    public static final int ALLIGNMENT_RIGHT = 3;
+    
     // Some magic constants
     public static final float padding = 30F; // page marging outside the text
     public static final float widthmeasure = 72F; // horizontal points per inch
-    public static final float heightmeasure = widthmeasure * 5F/3F; // relation of width and heght of a character
+    public static final float fontrelation = 5F/3F; // relation of width and heght of a character
+    public static final float heightmeasure = widthmeasure * fontrelation; // relation of width and heght of a character
     public static final float lineWidth = 0.5F; // Ir seems thin lines look better then 1F
+    static String normalFontPath = "C:\\Windows\\Fonts\\courbd.ttf";
+    static String italicFontPath = "C:\\Windows\\Fonts\\courbi.ttf";
+    
+    public static void setFontPaths(String normal, String italic){
+        normalFontPath = normal;
+        italicFontPath = italic;
+    }
     
     private float charWidth;
     private float charHeight;
@@ -37,17 +46,83 @@ public class PDFWriter {
     private Document document;
     private PdfWriter writer;
     private PdfContentByte content;
-    private BaseFont font;
+    private BaseFont baseFont;
+    private BaseFont italicFont;
     
     private float currentX;
     private float currentY;
+    
+    private Area currentArea;
+    
+    public class Area{
+        private StringBuilder innerText;
+        private float startX;
+        private float width;
+        private float fontSize;
+        private String fontStyle;
+        private int allignment;
+        
+        public Area(float width){
+            this.innerText = new StringBuilder();
+            this.width = width;
+            this.startX = currentX;
+            this.fontSize = charHeight;
+            this.allignment = ALLIGNMENT_LEFT;
+        }
+        
+        void putText(String text){
+            innerText.append(text);
+        }
+        void skipPosition(float count){
+            while(count-- > 0){
+                innerText.append(" ");
+            }
+        }
+        
+        void setFontSize(float size){
+            this.fontSize = size;
+        }
+
+        void setFontStyle(String style){
+            this.fontStyle = style;
+        }
+
+        void setAllignment(int allignment){
+            this.allignment = allignment;
+        }
+
+        void draw(){
+            content.beginText();
+            BaseFont font = baseFont;
+            if(this.fontStyle != null){
+                if(this.fontStyle.contains("B"))
+                    content.setTextRenderingMode(PdfContentByte.TEXT_RENDER_MODE_FILL_STROKE);
+                if(this.fontStyle.contains("I"))
+                    font = italicFont;
+            }
+            content.setFontAndSize(font, this.fontSize);
+            String text = innerText.toString();
+            float textWidth = font.getWidthPoint(text, this.fontSize);
+            float left = startX;
+            if(this.allignment == ALLIGNMENT_RIGHT){
+                left = startX + width - textWidth;
+            }else if(this.allignment == ALLIGNMENT_CENTER){
+                left = startX + (width - textWidth)/2;
+            }
+            content.setTextMatrix(left, currentY - this.fontSize + charHeight/6);
+            content.showText(innerText.toString());
+            content.endText();
+            content.setTextRenderingMode(PdfContentByte.TEXT_RENDER_MODE_FILL);
+            currentX = startX + width;
+        }
+    }
     
     private class sizeChooser{
         private Rectangle bestRect;
         private float bestDiff;
         private float needWidth;
         private float needHeight;
-        final private void compare(Rectangle rect){
+        private void compare(Rectangle rect){
             if(rect.getWidth() >= needWidth && rect.getHeight() >= needHeight){
                 float diffW = rect.getWidth() - needWidth;
                 float diffH = rect.getHeight() - needHeight;
@@ -107,7 +182,7 @@ public class PDFWriter {
             return bestRect;
         }
     }
-    
+
     public PDFWriter(int width, int height, int cpi) throws IOException{
         try {
             charWidth = widthmeasure/cpi;
@@ -116,7 +191,9 @@ public class PDFWriter {
             pageHeight = height*charHeight + 2*padding;
             leftMargin = 0;
             topMargin = 0;
-            font = BaseFont.createFont("C:\\Windows\\Fonts\\lucon.ttf", BaseFont.IDENTITY_H, true);
+//            baseFont = FontFactory.getFont("Lucida Console", BaseFont.IDENTITY_H).getBaseFont();
+            baseFont = BaseFont.createFont(normalFontPath, BaseFont.IDENTITY_H, true);
+            italicFont = BaseFont.createFont(italicFontPath, BaseFont.IDENTITY_H, true);
         } catch (DocumentException ex) {
             throw new IOException(ex);
         }
@@ -128,9 +205,12 @@ public class PDFWriter {
     }
 
     void nextPage() throws IOException {
+        if(currentArea!=null)
+            closeArea();
         document.newPage();
         currentX = padding + leftMargin * this.charWidth;
         currentY = this.pageHeight - padding - topMargin * this.charHeight;
+        currentArea = null;
     }
     
     void open(OutputStream stream) throws IOException {
@@ -149,17 +229,47 @@ public class PDFWriter {
     void finish() throws IOException {
         document.close();
     }
+    
+    void openArea(float width){
+        currentArea = new Area(width * charWidth);
+    }
+    
+    void setFontSize(float height){
+        if(currentArea!=null && height > 0){
+            currentArea.setFontSize(height * charHeight);
+        }
+    }
+    void setFontStyle(String style){
+        if(currentArea!=null){
+            currentArea.setFontStyle(style);
+        }
+    }
 
+    void setAllignment(int allignment){
+        if(currentArea!=null){
+            currentArea.setAllignment(allignment);
+        }
+    }
+
+    void closeArea(){
+        currentArea.draw();
+        currentArea = null;
+    }
+    
     void putText(String text) throws IOException {
+        if(currentArea==null){
             content.beginText();
-            content.setFontAndSize(font, charHeight);
-            content.setTextMatrix(currentX, currentY - this.charHeight);
+            content.setFontAndSize(baseFont, charHeight);
+            content.setTextMatrix(currentX, currentY - this.charHeight * 5/6);
             content.showText(text);
             content.endText();
             currentX += text.length() * this.charWidth;
+        }else{
+            currentArea.putText(text);
+        }
     }
 
-    void setPosition(int position) {
+    void setPosition(float position) {
         this.currentX = padding + (position + leftMargin) * this.charWidth;
     }
 
@@ -169,12 +279,29 @@ public class PDFWriter {
     }
 
     void nextRow(float height) {
-        this.currentY -= height * this.charHeight;
+        this.currentY -= height / fontrelation * this.charHeight;
         this.currentX = padding + leftMargin * this.charWidth;
     }
 
-    void skipPosition(int count) {
-        currentX += count * this.charWidth;
+    void restoreRow() {
+        int rows = (int)((this.pageHeight - padding - topMargin * this.charHeight - currentY)/this.charHeight) + 1;
+        this.currentY = this.pageHeight - padding - (rows + topMargin) * this.charHeight;
+        this.currentX = padding + leftMargin * this.charWidth;
+    }
+
+    void skipPosition(float count) {
+        if(currentArea==null){
+            currentX += count * this.charWidth;
+        }else{
+            currentArea.skipPosition(count);
+        }
+    }
+
+    void drawHR(float position) {
+        content.moveTo(currentX, currentY - this.charHeight/2);
+        content.lineTo(padding + (position + leftMargin) * this.charWidth, currentY - this.charHeight/2);
+        content.stroke();
+        this.currentX = padding + (position + leftMargin) * this.charWidth;
     }
 
     void processPseudographics(char tag, int count) throws IOException {

@@ -19,6 +19,7 @@ public class PageScanner {
     private StringBuilder token;
     private PDFWriter writer;
 
+    
     public void scanTo(PDFWriter writer) throws IOException {
         this.writer = writer;
         for(String l:lines){
@@ -66,12 +67,7 @@ public class PageScanner {
         if(next=='<'){
             this.processComplexTag();
         }else if(next >= '0' && next <='9'){
-            int count = 0;
-            while(next >= '0' && next <='9'){
-                count = count*10 + (next - '0');
-                index++;
-                next = line.charAt(index);
-            }
+            int count = readInt();
             this.processSimpleTag(count);
         }else{
             this.processSimpleTag(1);
@@ -81,8 +77,69 @@ public class PageScanner {
     private void processSpace(int count) {
         writer.skipPosition(count);
     }
+    
+    private boolean checkTag(String tagName){
+        int l = tagName.length();
+        if(line.length() > index + l){
+            if(line.substring(index, index+l).equalsIgnoreCase(tagName)){
+                index+=l;
+                return true;
+            }
+        }
+        return false;
+    }
 
-    private void processComplexTag() {
+    private void processComplexTag() throws IOException {
+        if(checkTag("<POS=")){
+            float pos = readFloat();
+            writer.setPosition(pos);
+        }else if(checkTag("<LF>")){
+            writer.nextRow();
+        }else if(checkTag("<LF=N")){
+            writer.restoreRow();
+        }else if(checkTag("<LF=")){
+            float height = readFloat();
+            writer.nextRow(height);
+        }else if(checkTag("<HR=")){
+            float pos = readFloat();
+            writer.drawHR(pos);
+        }else if(checkTag("<FONT=")){
+            float width = readFloat();
+            writer.openArea(width);
+        }else if(checkTag("<SMALL=")){
+            float width = readFloat();
+            writer.openArea(width);
+            writer.setFontSize(0.7F);
+        }else if(checkTag("<CAPTION=")){
+            float width = readFloat();
+            writer.openArea(width);
+            writer.setFontStyle("B");
+        }else if(checkTag("<EMPHASIZED=")){
+            float width = readFloat();
+            writer.openArea(width);
+            writer.setFontStyle("I");
+        }else if(checkTag("</FONT")){
+            writer.closeArea();
+        }else if(checkTag("<LEFT")){
+            writer.setAllignment(PDFWriter.ALLIGNMENT_LEFT);
+        }else if(checkTag("<RIGHT")){
+            writer.setAllignment(PDFWriter.ALLIGNMENT_RIGHT);
+        }else if(checkTag("<CENTER")){
+            writer.setAllignment(PDFWriter.ALLIGNMENT_CENTER);
+        }else if(checkTag("<SIZE=")){
+            float height = readFloat();
+            writer.setFontSize(height);
+        }else if(checkTag("<STYLE=")){
+            float height = readFloat();
+            StringBuilder style = new StringBuilder();
+            char next = line.charAt(index);
+            while(next != '>'){
+                style.append(next);
+                index++;
+                next = line.charAt(index);
+            }
+            writer.setFontStyle(style.toString());
+        }
         char next = line.charAt(index);
         while(next != '>'){
             index++;
@@ -107,4 +164,34 @@ public class PageScanner {
         }
     }
     
+    private float readFloat(){
+        char next = line.charAt(index);
+        float count = 0;
+        float decimal = 0;
+        while(next >= '0' && next <='9' || next=='.'){
+            if(next=='.') decimal = 1/10F;
+            else{
+                if(decimal==0){
+                    count = count*10 + (next - '0');
+                }else{
+                    count = count + (next - '0') * decimal;
+                    decimal /= 10;
+                }
+            }
+            index++;
+            next = line.charAt(index);
+        }
+        return count;
+    }
+    
+    private int readInt(){
+        char next = line.charAt(index);
+        int count = 0;
+        while(next >= '0' && next <='9'){
+            count = count*10 + (next - '0');
+            index++;
+            next = line.charAt(index);
+        }
+        return count;
+    }
 }
