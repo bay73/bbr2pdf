@@ -1,7 +1,5 @@
 package org.bay.bbr2pdf;
 
-import java.io.IOException;
-
 /**
  *
  * @author Andrey Bogdanov <bay73@mail.ru>
@@ -19,7 +17,7 @@ public class PageScanner {
     private StringBuilder token;
     private CommonWriter writer;
 
-    public void scanTo(CommonWriter writer) throws IOException {
+    public void scanTo(CommonWriter writer) {
         this.writer = writer;
         for (String l : lines) {
             this.line = l;
@@ -53,14 +51,14 @@ public class PageScanner {
         this.lines = lines;
     }
 
-    private void finishToken() throws IOException {
+    private void finishToken(){
         if (token.length() > 0) {
             writer.putText(token.toString());
             token = new StringBuilder();
         }
     }
 
-    private void processTag() throws IOException {
+    private void processTag(){
         index++;
         char next = line.charAt(index);
         if (next == '<') {
@@ -73,11 +71,11 @@ public class PageScanner {
         }
     }
 
-    private void processSpace(int count) throws IOException {
+    private void processSpace(int count) {
         writer.skipPosition(count);
     }
 
-    private void processComplexTag() throws IOException {
+    private void processComplexTag(){
         if (checkTag("<POS=")) {
             float pos = readFloat();
             writer.setPosition(pos);
@@ -135,7 +133,7 @@ public class PageScanner {
         index++;
     }
 
-    private void processSimpleTag(int count) throws IOException {
+    private void processSimpleTag(int count) {
         char tag = line.charAt(index);
         index++;
         if (tag >= 'a' && tag <= 'k') {

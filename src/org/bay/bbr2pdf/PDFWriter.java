@@ -129,30 +129,26 @@ public class PDFWriter implements CommonWriter {
             writer = PdfWriter.getInstance(document, stream);
             document.open();
             content = writer.getDirectContent();
-        } catch (DocumentException ex) {
-            throw new IOException(ex);
-        }
-    }
-
-    @Override
-    public void finish() throws IOException {
-        document.close();
-    }
-
-    @Override
-    public void setPageSize(int width, int height, int cpi) throws IOException {
-        try {
-            charWidth = widthmeasure / cpi;
-            charHeight = heightmeasure / cpi;
-            pageWidth = width * charWidth + 2 * padding;
-            pageHeight = height * charHeight + 2 * padding;
-            leftMargin = 0;
-            topMargin = 0;
             baseFont = BaseFont.createFont(normalFontPath, BaseFont.IDENTITY_H, true);
             italicFont = BaseFont.createFont(italicFontPath, BaseFont.IDENTITY_H, true);
         } catch (DocumentException ex) {
             throw new IOException(ex);
         }
+    }
+
+    @Override
+    public void finish() {
+        document.close();
+    }
+
+    @Override
+    public void setPageSize(int width, int height, int cpi) {
+        charWidth = widthmeasure / cpi;
+        charHeight = heightmeasure / cpi;
+        pageWidth = width * charWidth + 2 * padding;
+        pageHeight = height * charHeight + 2 * padding;
+        leftMargin = 0;
+        topMargin = 0;
     }
 
     @Override
@@ -162,7 +158,7 @@ public class PDFWriter implements CommonWriter {
     }
 
     @Override
-    public void nextPage() throws IOException {
+    public void nextPage() {
         if (currentArea != null) {
             closeArea();
         }
@@ -205,7 +201,7 @@ public class PDFWriter implements CommonWriter {
     }
 
     @Override
-    public void putText(String text) throws IOException {
+    public void putText(String text) {
         if (currentArea == null) {
             content.beginText();
             content.setFontAndSize(baseFont, charHeight);
@@ -260,7 +256,7 @@ public class PDFWriter implements CommonWriter {
     }
 
     @Override
-    public void drawPseudographics(char tag, int count) throws IOException {
+    public void drawPseudographics(char tag, int count) {
         content.setLineWidth(lineWidth);
         int counter = count;
         if (tag == CommonWriter.PG_TAG_TOPLEFT) {

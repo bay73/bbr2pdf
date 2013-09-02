@@ -88,7 +88,7 @@ public class BBRConverter {
      * top margin LL - left margin HHH - page height
      *
      */
-    public void setReportParams(String designText, int rightMargin) throws IOException {
+    public void setReportParams(String designText, int rightMargin) {
         setRightMargin(rightMargin);
         setLeftMargin(new Integer(designText.substring(4, 6).trim()));
         setTopMargin(new Integer(designText.substring(6, 8).trim()));

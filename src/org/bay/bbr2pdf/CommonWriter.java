@@ -51,45 +51,45 @@ public interface CommonWriter {
     /*
      * switch pages
      */
-    public void nextPage() throws IOException;
+    public void nextPage();
 
     /*
      * add piecs of text
      */
-    public void putText(String toString) throws IOException;
+    public void putText(String toString);
 
     /*
      * positionong
      */
-    public void nextRow() throws IOException;
+    public void nextRow();
 
-    public void nextRow(float height) throws IOException;
+    public void nextRow(float height);
 
-    public void restoreRow() throws IOException;
+    public void restoreRow();
 
-    public void skipPosition(float count) throws IOException;
+    public void skipPosition(float count);
 
-    public void setPosition(float pos) throws IOException;
+    public void setPosition(float pos);
 
     /*
      * lines
      */
-    public void drawHR(float pos) throws IOException;
+    public void drawHR(float pos);
 
-    public void drawPseudographics(char tag, int count) throws IOException;
+    public void drawPseudographics(char tag, int count);
 
     /*
      * Text Formatting Each piece of formatted text is an area Size, style and
      * allignment setting should be after opening area There cannot be
      * pseudographics inside an area
      */
-    public void openArea(float width) throws IOException;
+    public void openArea(float width);
 
-    public void closeArea() throws IOException;
+    public void closeArea();
 
-    public void setFontSize(float height) throws IOException;
+    public void setFontSize(float height);
 
-    public void setFontStyle(String style) throws IOException;
+    public void setFontStyle(String style);
 
-    public void setAllignment(int allignment) throws IOException;
+    public void setAllignment(int allignment);
 }
