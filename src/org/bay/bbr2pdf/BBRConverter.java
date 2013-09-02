@@ -100,21 +100,25 @@ public class BBRConverter {
      * Set data source for reading bbr-data it could be array, file or
      * sql-connection to oracle database
      */
-    public void setSource(String[] lines) {
+    public void clearSource() {
+        pages.clear();
+    }
+
+    public void addSource(String[] lines) {
         pages.add(lines);
     }
 
-    public void setSource(List<String> lines) {
+    public void addSource(List<String> lines) {
         String[] reportlines = new String[lines.size()];
         reportlines = lines.toArray(reportlines);
-        setSource(reportlines);
+        addSource(reportlines);
     }
 
-    public void setSource(String fileName) throws FileNotFoundException, IOException {
-        setSource(new File(fileName));
+    public void addSource(String fileName) throws FileNotFoundException, IOException {
+        addSource(new File(fileName));
     }
 
-    public void setSource(File file) throws FileNotFoundException, IOException {
+    public void addSource(File file) throws FileNotFoundException, IOException {
         List<String> lines = new ArrayList<>();
         BufferedReader reader = null;
         try {
@@ -122,7 +126,7 @@ public class BBRConverter {
             while (reader.ready()) {
                 lines.add(reader.readLine());
             }
-            setSource(lines);
+            addSource(lines);
         } finally {
             reader.close();
         }
@@ -163,6 +167,7 @@ public class BBRConverter {
     }
 
     public void setSource(ResultSet rs) throws SQLException {
+        clearSource();
         ArrayList<String> lines = new ArrayList<>();
         int lastpage = -1;
         int lastrow = -1;
@@ -171,7 +176,7 @@ public class BBRConverter {
             int page = rs.getInt(2);
             if (page != lastpage) {
                 lines.add(str.toString());
-                setSource(lines);
+                addSource(lines);
                 lines = new ArrayList<>();
                 str = new StringBuilder();
             }
@@ -185,7 +190,7 @@ public class BBRConverter {
             lastpage = page;
         }
         lines.add(str.toString());
-        setSource(lines);
+        addSource(lines);
     }
 
     /**

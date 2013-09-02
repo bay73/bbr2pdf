@@ -1,15 +1,14 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.bay.bbr2pdf;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
 /**
+ * @author Andrey Bogdanov <bay73@mail.ru>
+ * @version 1.0
+ * @since 2013-08-25
  *
- * @author a.bogdanov
+ * Base interface for writers
  */
 public interface CommonWriter {
 
