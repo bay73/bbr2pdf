@@ -124,7 +124,7 @@ public class PDFWriter implements CommonWriter {
     public void open(OutputStream stream) throws IOException {
         try {
             document = new Document();
-            Rectangle rect = new sizeChooser(pageWidth, pageHeight).getBest();
+            Rectangle rect = new SizeChooser(pageWidth, pageHeight).getBest();
             document.setPageSize(rect);
             writer = PdfWriter.getInstance(document, stream);
             document.open();
@@ -347,7 +347,7 @@ public class PDFWriter implements CommonWriter {
     }
     
     // auxiliary class to choose best-fit paper size
-    private class sizeChooser {
+    private class SizeChooser {
 
         private Rectangle bestRect;
         private float bestDiff;
@@ -382,7 +382,7 @@ public class PDFWriter implements CommonWriter {
             }
         }
 
-        sizeChooser(float width, float height) {
+        SizeChooser(float width, float height) {
             this.needHeight = height;
             this.needWidth = width;
             this.bestDiff = Float.MAX_VALUE;
