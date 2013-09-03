@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ import java.util.List;
  *
  */
 public class BBRConverter {
-    
+
     /*
      * Private staff
      */
@@ -31,33 +32,57 @@ public class BBRConverter {
     private int cpi;
     private int width;
     private int height;
-    private List<String[]> pages;
+    private Iterable<String[]> pages;
     private OutputStream outStream;
 
     public BBRConverter(CommonWriter writer) {
-        this.pages = new ArrayList<>();
         this.writer = writer;
     }
 
     /**
-     * Main method which start conversion
+     * Main method which makes conversion
      */
     public void process() throws IOException {
+        try{
+            start();
+            for (String[] page : pages) {
+                writer.nextPage();
+                processPage(page);
+            }
+        }finally{
+            finish();
+        }
+    }
+
+    public void start() throws IOException {
         width = rightMargin + leftMargin;
         height = topMargin + bottomMargin;
         writer.setPageSize(width, height, cpi);
         writer.open(outStream);
         writer.setMargins(leftMargin, topMargin);
-        int pageCount = pages.size();
-        for (int p = 0; p < pageCount; p++) {
-            writer.nextPage();
-            scanner = new PageScanner();
-            scanner.setSource(pages.get(p));
-            scanner.scanTo(writer);
-        }
-        writer.finish();
     }
-    
+
+    public void finish() throws IOException {
+        writer.finish();
+        if(pages instanceof ResultSetReader){
+            ResultSet rs = ((ResultSetReader)pages).rs;
+            if(rs!=null){
+                try {
+                    rs.getStatement().close();
+                    rs.close();
+                } catch (SQLException ex) {
+                    throw new IOException(ex);
+                }
+            }
+        }
+    }
+
+    public void processPage(String[] page) throws IOException {
+        scanner = new PageScanner();
+        scanner.setSource(page);
+        scanner.scanTo(writer);
+    }
+
     /*
      * setters
      */
@@ -101,11 +126,16 @@ public class BBRConverter {
      * sql-connection to oracle database
      */
     public void clearSource() {
-        pages.clear();
+        pages = null;
     }
 
     public void addSource(String[] lines) {
-        pages.add(lines);
+        if (pages == null) {
+            pages = new ArrayList<>();
+        }
+        if (pages instanceof ArrayList) {
+            ((ArrayList) pages).add(lines);
+        }
     }
 
     public void addSource(List<String> lines) {
@@ -120,15 +150,11 @@ public class BBRConverter {
 
     public void addSource(File file) throws FileNotFoundException, IOException {
         List<String> lines = new ArrayList<>();
-        BufferedReader reader = null;
-        try {
-            reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
             while (reader.ready()) {
                 lines.add(reader.readLine());
             }
             addSource(lines);
-        } finally {
-            reader.close();
         }
     }
 
@@ -147,15 +173,6 @@ public class BBRConverter {
                 String designText = rs.getString(3);
                 setReportParams(designText, rM);
             }
-            rs.close();
-            ps.close();
-            ps = connection.prepareStatement(
-                    "SELECT LineText, PageNumber, LineNumber, nPartCount"
-                    + " FROM " + (bTemp ? "ReportLines_Tmp" : "ReportLines") + " "
-                    + " WHERE Report = :1 ORDER BY PageNumber, LineNumber, nPartCount");
-            ps.setInt(1, reportId);
-            rs = ps.executeQuery();
-            setSource(rs);
         } finally {
             if (rs != null) {
                 rs.close();
@@ -164,33 +181,21 @@ public class BBRConverter {
                 ps.close();
             }
         }
+        ps = connection.prepareStatement(
+                "SELECT LineText, PageNumber, LineNumber, nPartCount"
+                + " FROM " + (bTemp ? "ReportLines_Tmp" : "ReportLines") + " "
+                + " WHERE Report = :1 ORDER BY PageNumber, LineNumber, nPartCount");
+        ps.setInt(1, reportId);
+        rs = ps.executeQuery();
+        setSource(rs);
     }
 
     public void setSource(ResultSet rs) throws SQLException {
-        clearSource();
-        ArrayList<String> lines = new ArrayList<>();
-        int lastpage = -1;
-        int lastrow = -1;
-        StringBuilder str = new StringBuilder();
-        while (rs.next()) {
-            int page = rs.getInt(2);
-            if (page != lastpage) {
-                lines.add(str.toString());
-                addSource(lines);
-                lines = new ArrayList<>();
-                str = new StringBuilder();
-            }
-            int row = rs.getInt(3);
-            if (row != lastrow) {
-                lines.add(str.toString());
-                str = new StringBuilder();
-            }
-            str.append(rs.getString(1));
-            lastrow = row;
-            lastpage = page;
-        }
-        lines.add(str.toString());
-        addSource(lines);
+        this.pages = new ResultSetReader(rs);
+    }
+
+    public void setSource(Iterable<String[]> pageList) {
+        this.pages = pageList;
     }
 
     /**
@@ -210,5 +215,77 @@ public class BBRConverter {
 
     public void setTarget(OutputStream stream) {
         outStream = stream;
+    }
+
+    /*
+     * Helper class to iterate ResultSet page by Page
+     */
+    private class ResultSetReader implements Iterable {
+
+        private ResultSet rs = null;
+
+        public ResultSetReader(ResultSet rs) {
+            this.rs = rs;
+        }
+
+        private class ResultSetIterator implements Iterator {
+
+            private int prevpage = -1;
+            private int prevrow = -1;
+            private boolean isFinished = false;
+            private StringBuilder str = new StringBuilder();
+
+            @Override
+            public boolean hasNext() {
+                return !isFinished;
+            }
+
+            @Override
+            public String[] next() {
+                try {
+                    ArrayList<String> lines = new ArrayList<>();
+                    while (rs.next()) {
+                        int page = rs.getInt(2);
+                        int row = rs.getInt(3);
+                        if (page != prevpage && prevpage > 0) {
+                            lines.add(str.toString());
+                            String[] reportlines = new String[lines.size()];
+                            reportlines = lines.toArray(reportlines);
+                            str = new StringBuilder();
+                            str.append(rs.getString(1));
+                            prevrow = row;
+                            prevpage = page;
+                            return reportlines;
+                        }
+                        if (row != prevrow && prevrow > 0) {
+                            lines.add(str.toString());
+                            str = new StringBuilder();
+                        }
+                        str.append(rs.getString(1));
+                        prevrow = row;
+                        prevpage = page;
+                    }
+                    lines.add(str.toString());
+                    String[] reportlines = new String[lines.size()];
+                    reportlines = lines.toArray(reportlines);
+                    isFinished = true;
+                    rs.getStatement().close();
+                    rs.close();
+                    return reportlines;
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("Remove is not supported.");
+            }
+        }
+
+        @Override
+        public Iterator iterator() {
+            return new ResultSetIterator();
+        }
     }
 }

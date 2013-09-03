@@ -6,6 +6,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.bay.bbr2pdf.*;
 
 /**
  *
@@ -21,18 +22,17 @@ public class TestClass {
     public static void main(String[] args) throws IOException {
         PDFWriter.setFontPaths("C:\\Windows\\Fonts\\lucon.ttf", "C:\\Windows\\Fonts\\courbi.ttf");
 
-        BBRConverter conv2 = new BBRConverter(new PDFWriter());
-        conv2.setReportParams("B1211 1 76 ", 87);
-        conv2.setSource("rep.bbr");
-        conv2.setTarget("rep.pdf");
-        conv2.process();
+        BBRConverter converter = new BBRConverter(new PDFWriter());
+        converter.setReportParams("B1211 1 76 ", 87);
+        converter.addSource("rep.bbr");
+        converter.setTarget("rep.pdf");
+        converter.process();
 
         Connection conn = null;
         try {
-            int reportId = 1164506;
+            int reportId = 1164516;
             Class.forName("oracle.jdbc.OracleDriver");
             conn = DriverManager.getConnection("jdbc:oracle:thin:@//host", "user", "password");
-            BBRConverter converter = new BBRConverter(new PDFWriter());
             converter.setSource(conn, reportId, false);
             converter.setTarget("List.pdf");
             converter.process();
