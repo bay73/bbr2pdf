@@ -131,7 +131,7 @@ public class BBRConverter {
 
     public void addSource(String[] lines) {
         if (pages == null) {
-            pages = new ArrayList<>();
+            pages = new ArrayList<String[]>();
         }
         if (pages instanceof ArrayList) {
             ((ArrayList) pages).add(lines);
@@ -149,12 +149,17 @@ public class BBRConverter {
     }
 
     public void addSource(File file) throws FileNotFoundException, IOException {
-        List<String> lines = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+        List<String> lines = new ArrayList<String>();
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
             while (reader.ready()) {
                 lines.add(reader.readLine());
             }
             addSource(lines);
+        }finally{
+            if(reader != null)
+                reader.close();
         }
     }
 
@@ -208,6 +213,9 @@ public class BBRConverter {
 
     public void setTarget(File file) throws IOException {
         if (!file.exists()) {
+            if(!file.getParentFile().exists()){
+                file.getParentFile().mkdirs();
+            }
             file.createNewFile();
         }
         setTarget(new FileOutputStream(file));
@@ -243,7 +251,7 @@ public class BBRConverter {
             @Override
             public String[] next() {
                 try {
-                    ArrayList<String> lines = new ArrayList<>();
+                    ArrayList<String> lines = new ArrayList<String>();
                     while (rs.next()) {
                         int page = rs.getInt(2);
                         int row = rs.getInt(3);

@@ -6,7 +6,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.bay.bbr2pdf.*;
 
 /**
  *
@@ -32,11 +31,11 @@ public class TestClass {
         try {
             int reportId = 1164516;
             Class.forName("oracle.jdbc.OracleDriver");
-            conn = DriverManager.getConnection("jdbc:oracle:thin:@//host", "user", "password");
+            conn = DriverManager.getConnection("jdbc:oracle:thin:@//slonik.corp.mail.ru:1523/bamlmru", "od", "OD");
             converter.setSource(conn, reportId, false);
             converter.setTarget("List.pdf");
             converter.process();
-        } catch (SQLException | ClassNotFoundException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(TestClass.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             if (conn != null) {
