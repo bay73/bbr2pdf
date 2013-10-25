@@ -31,7 +31,7 @@ public class TestClass {
         try {
             int reportId = 1164516;
             Class.forName("oracle.jdbc.OracleDriver");
-            conn = DriverManager.getConnection("jdbc:oracle:thin:@//slonik.corp.mail.ru:1523/bamlmru", "od", "OD");
+            conn = DriverManager.getConnection("jdbc:oracle:thin:@", "", "");
             converter.setSource(conn, reportId, false);
             converter.setTarget("List.pdf");
             converter.process();
