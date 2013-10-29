@@ -55,7 +55,7 @@ public interface CommonWriter {
     /*
      * add piecs of text
      */
-    public void putText(String toString);
+    public void putText(String text);
 
     /*
      * positionong

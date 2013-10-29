@@ -15,10 +15,11 @@ public class Unloader {
     public static void ProcessQueue(Connection connection, String root) throws SQLException, IOException{
         PreparedStatement ps = null;
         ResultSet rs = null;
-        BBRConverter converter = new BBRConverter(new PDFWriter());
+        BBRConverter pdfConverter = new BBRConverter(new PDFWriter());
+        BBRConverter txtConverter = new BBRConverter(new TXTWriter());
         try {
             ps = connection.prepareStatement(
-                    "SELECT RQ.Classified, RQ.ProcName, RQ.ParamString, RQ.FileName, RT.IsTemp, RT.DesignText "
+                    "SELECT RQ.Classified, RQ.ProcName, RQ.ParamString, RQ.FileName, RT.IsTemp, RT.DesignText, RQ.FileType "
                     + " FROM DMR_ReportQueue RQ, ReportTemplate RT"
                     + " WHERE RT.ReportProc = RQ.ProcName AND decode(Status,null,1,null) = 1");
             rs = ps.executeQuery();
@@ -29,8 +30,12 @@ public class Unloader {
                 String fileName = rs.getString(4);
                 boolean bTemp = (rs.getInt(5)==1);
                 String designText = rs.getString(6);
+                String fileType = rs.getString(7);
                 CallableStatement cs = null;
                 try{
+                    BBRConverter converter = txtConverter;
+                    if(fileType.equalsIgnoreCase("PDF")) 
+                        converter = pdfConverter;
                     int reportId = execReport(connection, procName, paramString, bTemp, designText);
                     converter.setSource(connection, reportId, bTemp);
                     converter.setTarget(root + "/" + fileName);
@@ -103,11 +108,11 @@ public class Unloader {
         CallableStatement cs = null;
         try {
             if(message != null){
-                cs = connection.prepareCall("UPDATE DMR_ReportQueue SET Status = 1, Message = substr(:1, 1, 2000) WHERE Classified = :2");
+                cs = connection.prepareCall("UPDATE DMR_ReportQueue SET Status = 1, Message = substr(:1, 1, 2000), Processed = sysdate WHERE Classified = :2");
                 cs.setString(1, message);
                 cs.setInt(2, queueId);
             }else{
-                cs = connection.prepareCall("UPDATE DMR_ReportQueue SET Status = 0 WHERE Classified = :1");
+                cs = connection.prepareCall("UPDATE DMR_ReportQueue SET Status = 0, Processed = sysdate WHERE Classified = :1");
                 cs.setInt(1, queueId);
             }
             cs.execute();
