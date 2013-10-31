@@ -90,8 +90,6 @@ public class TXTWriter implements CommonWriter{
         if (currentArea != null) {
             closeArea();
         }
-        this.out.println();
-        this.out.println();
         currentX = 0;
     }
 
